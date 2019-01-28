@@ -1,0 +1,965 @@
+﻿<html>
+	<head>
+		<meta charset="utf-8" />
+	<style>
+		.locations, .SFposition{
+		width:200px;
+		position:relative;
+		left:0px;
+		bottom:0px;
+	}
+		.playCards{
+		width:300px;
+		position:relative;
+		top:100px;
+	}
+		.SFposition ~ .SFposition {
+		padding-left:27px;
+	}
+		#stats{
+		position:absolute;
+		left:500px;
+		top:0px;
+	}
+		#phases{
+		position:absolute;
+		left:700px;
+		top:0px;
+	}
+		#guard{
+		width:50px;
+		position:absolute;
+		display:none;
+		z-index:1;
+	}
+		#round{
+		position:absolute;
+		right:100px;
+		top:50px;
+	}
+		#protectList{
+		position:absolute;
+		right:100px;
+		top:50px;
+	}
+	</style>
+	</head>
+	<body>
+		<div id="stats">
+		Current Power:<span id="currentPower"></span>&nbsp;(<span id="dice1"></span>|<span id="dice2"></span>)
+		<br />
+		Total Power:<span id="totalPower"></span>
+		<br />
+		Bonus SF Power:<span id="bonusSFpower"></span>
+		<br />
+		Total SF Power:<span id="totalSFpower"></span>
+		<br />
+		Mana:<span id="mana">6</span>
+		<br />
+		Spirit:<span id="spirit">12</span>
+		</div>
+		<div id="phases">
+			<ol>
+				<li id="phase1">Phase1 - Upkeep</li>
+				<li id="phase2">Phase2 - Move</li>
+				<li id="phase3">Phase3 - Attack</li>
+				<li id="phase4">Phase4 - Siege Loss</li>
+			</ol>
+			<button type="button" onclick="nextPhase()" id="nextPhase">Next Phase</button>
+		</div>
+		<div><span id="position1" class="SFposition"></span><span id="position1a" class="SFposition"></span><span id="position2" class="SFposition"></span><span id="position2a" class="SFposition"></span></div>
+		<div id="upLocations"></div>
+		<img src="images/guard.jpg" alt="guard" id="guard" />
+		<div id="downLocations"></div>
+		<div><span id="position4" class="SFposition"></span><span id="position4a" class="SFposition"></span><span id="position3" class="SFposition"></span><span id="position3a" class="SFposition"></span></div>
+		<div>
+			<button type="button" onclick="showDiscard()" style="display:none;" id="discardButton">Show Discard</button>
+			<span id="discardPile"></span>
+		</div>
+		<div id="playArea"></div>
+		<div id="phases"></div>
+		<button type="button" onclick="startGame()" id="startButton">START GAME!!!</button>
+		<button type="button" onclick="move()" style="position:absolute; display:none; top:300px; left:450px;" id = "moveButton">Move</button>
+		<button type="button" onclick="useSpell()" style="position:absolute; display:none; top:300px; left:550px;" id = "spellButton" disabled="disabled">Use Spell</button>
+		<button type="button" onclick="useSkill()" style="position:absolute; display:none; top:300px; left:650px;" id = "skillButton">Use Skill</button>
+		<button type="button" onclick="fight()" style="position:absolute; display:none; top:200px; left:600px;" id = "fightButton" disabled="disabled">FIGHT!!!</button>
+		<div id="round">ROUND: <span id="currentRound">1</span>
+		<select id="protectList">
+			<option name="Armory">Armory</option>
+			<option name="Library">Library</option>
+			<option name="Citadel">Citadel</option>
+			<option name="Gate">Gate</option>
+			<option name="Wall">Wall</option>
+			<option name="Square">Square</option>
+			<option name="Market">Market</option>
+			<option name="Baracks">Baracks</option>
+		</select>
+		<button type="button" onclick="blockSiege()" style="position:relative; top:48px; right:30px;" disabled="disabled" id="protect">Protect</button>
+		<div>Passage:&nbsp;<span id="passage">NO!</span></div>
+	<script>
+	var pic01='<img src="images/Card1.jpg" alt="card" class="playCards" />';
+	var pic02='<img src="images/Card2.jpg" alt="card" class="playCards" />';
+	var pic03='<img src="images/Card3.jpg" alt="card" class="playCards" />';
+	var pic04='<img src="images/Card4.jpg" alt="card" class="playCards" />';
+	var pic05='<img src="images/Card5.jpg" alt="card" class="playCards" />';
+	var pic08='<img src="images/Card8.jpg" alt="card" class="playCards" />';
+	var pic07='<img src="images/Card7.jpg" alt="card" class="playCards" />';
+	var pic06='<img src="images/Card6.jpg" alt="card" class="playCards" />';
+	var pic09='<img src="images/Card9.jpg" alt="card" class="playCards" />';
+	var pic10='<img src="images/Card10.jpg" alt="card" class="playCards" />';
+	var pic11='<img src="images/Card11.jpg" alt="card" class="playCards" />';
+	var pic12='<img src="images/Card12.jpg" alt="card" class="playCards" />';
+	var pic21='<img src="images/LocationCard1.jpg" alt="loc1" class="locations" />';
+	var pic22='<img src="images/LocationCard2.jpg" alt="loc2" class="locations" />';
+	var pic23='<img src="images/LocationCard3.jpg" alt="loc3" class="locations" />';
+	var pic24='<img src="images/LocationCard4.jpg" alt="loc4" class="locations" />';
+	var picG='<img src="images/guard.jpg" alt="guard" id="guard" style="width:50px; position:relative;" />';
+	//format picture, name, ocupite -> 0-no, 1-first location, 2-second location
+	var locationCard1=[pic21,"gate", 0];
+	var locationCard2=[pic22, "armory", 0];
+	var locationCard3=[pic23, "library", 2];
+	var locationCard4=[pic24, "wall", 0];
+	var locationDeck=[locationCard1, locationCard2, locationCard3, locationCard4];
+	var locations=[];
+	//format picture, name, SF, power, mana
+	var card1=[pic01, "armory", 0, 1, 3];
+	var card2=[pic02, "library", 0, 2, 1];
+	var card3=[pic03, "citadel", 1, 2, 0];
+	var card4=[pic04, "gate", 1, 3, 1];
+	var card5=[pic05, "wall", 0, 3, 1];
+	var card6=[pic06, "square", 1, 4, 2];
+	var card7=[pic07, "M/A", 2, 2, 0];
+	var card8=[pic08, "market", 1, 3, 2];
+	var card9=[pic09, "baracks", 1, 2, 2];
+	var card10=[pic10, "W/S", 3, 4, 1];
+	var card11=[pic11, "C/G", 3, 4, 2];
+	var card12=[pic12, "L/B", 2, 3, 1];
+	var playDeck=[card1, card2, card3, card4, card5, card6, card7, card8, card9, card10, card11, card12];
+	var currentCards=[];
+	var gate = 0;
+	var baracks = 0;
+	var armory = 0;
+	var market = 0;
+	var library = 0;
+	var citadel = 0;
+	var wall = 0;
+	var square = 0;
+	var phase = 2;
+	var mana = 6;
+	var spirit = 12;
+	var bonusSFpower = 0;
+	var movePoints = 0;
+	var leftPosition = 0;
+	var topPosition = 0;
+	var CL = 0;
+	var ocupite = 0;
+	var totoalSFpower = 0;
+	var currentSF = 0;
+	var discardDeck = [];
+	var discard = 0;
+	var round = 1;
+	var attackSF = 0;
+	var currentPower = 0;
+	var totalPower = 0;
+	var spellPower = 0;
+	var dice1 = 0;
+	var dice2 = 0;
+	var protect = "";
+	var isFight = false;
+	var saveCL = 0;
+	var saveOcupite = 0;
+	var passage = false;
+	
+	function dealLocations()
+	{
+		for (i = 0; i<4; i++)
+		{
+			var randLoc = Math.floor(Math.random()*locationDeck.length);
+			locations.push(locationDeck[randLoc]);
+			locationDeck.splice(randLoc,1);
+		}
+		document.getElementById("upLocations").innerHTML = locations[0][0]+locations[1][0];
+		document.getElementById("downLocations").innerHTML = locations[3][0]+locations[2][0];
+		updateSF();
+	}
+
+	function updateSF()
+	{
+		for (i = 1; i <= 4; i++)
+		{
+			switch(locations[i-1][1])
+			{
+				case "gate": 
+				document.getElementById('position'+i).innerHTML = 'SF Gate:' + gate;
+				document.getElementById('position'+i+'a').innerHTML = 'SF Baracks:' + baracks;
+				break;
+				case "armory": 
+				document.getElementById('position'+i).innerHTML = 'SF Armory:' + armory;
+				document.getElementById('position'+i+'a').innerHTML = 'SF Market:' + market;
+				break;
+				case "library": 
+				document.getElementById('position'+i).innerHTML = 'SF Library:' + library;
+				document.getElementById('position'+i+'a').innerHTML = 'SF Citadel:' + citadel;
+				break;
+				case "wall": 
+				document.getElementById('position'+i).innerHTML = 'SF Wall:' + wall;
+				document.getElementById('position'+i+'a').innerHTML = 'SF Square:' + square;
+				break;
+			}
+		}
+	}
+
+	function dealPlayCards()
+	{
+		if(currentCards.length > 0)
+		{
+			currentCards = [];
+		}
+		if(playDeck.length == 0)
+		{
+			for(i = 0; i < 12; i++)
+			{
+				playDeck.push(discardDeck[i][0]);
+			}
+			discardDeck = [];
+			round++;
+			document.getElementById('currentRound').innerHTML = round;
+			if (round > 3) 
+			{
+				alert('CONGRATULATIONS!!! You beat the game. G A M E   O V E R'); 
+				location.reload(true);
+			}
+		}
+		for(i = 0; i < 3; i++)
+		{
+		var randCard = Math.floor(Math.random()*playDeck.length);
+			currentCards.push(playDeck[randCard]);
+			discard = playDeck.splice(randCard,1);
+			discardDeck.push(discard);
+		}
+		document.getElementById("playArea").innerHTML = currentCards[0][0]+' '+currentCards[1][0]+' '+currentCards[2][0];
+		changeStat();
+	}
+
+	function nextPhase()
+	{
+		var stop = true;
+		if(movePoints > 0) 
+		stop = confirm ("You will lost your movement.Are you sure you want to continue?");
+		if(stop)
+		{
+			if(phase > 4) phase = 1;
+			for(i = 1; i <= 4; i++)
+			document.getElementById('phase'+i).removeAttribute("style");
+			if(phase == 1)
+			{
+				document.getElementById('skillButton').removeAttribute("disabled");
+				document.getElementById('phase1').style.color = "green";
+				dealPlayCards();
+			}
+			else if(phase == 2)
+			{
+				document.getElementById('phase2').style.color = "green";
+				document.getElementById('nextPhase').setAttribute("disabled","disabled");
+				movePoints = 3;
+				document.getElementById('moveButton').removeAttribute("disabled");
+			}
+			else if(phase == 3)
+			{	
+				movePoints = 0;
+				passage = false;
+				document.getElementById('moveButton').setAttribute("disabled","disabled");
+				document.getElementById('nextPhase').setAttribute("disabled","disabled");
+				document.getElementById('phase3').style.color = "green";
+				document.getElementById('spellButton').removeAttribute("disabled");
+				document.getElementById('fightButton').removeAttribute("disabled");
+				attack();
+			}
+			else if(phase == 4)
+			{	
+				isFight = false;
+				if(passage == false) document.getElementById("passage").innerHTML = "NO!";
+				else document.getElementById("passage").innerHTML = "YES!";
+				document.getElementById('spellButton').setAttribute("disabled","disabled");
+				document.getElementById('phase4').style.color = "green";
+				var overrun = [gate, baracks, armory, market, citadel, wall, library, square];
+				var count = 0;
+				for (i = 0; i < 8; i++)
+				{
+					if(overrun[i] >= 8)
+					count += 1;
+				}
+				if (count >= 4) 
+				{
+					alert (count + ' locations are overrun. Y O U   L O S T !!!');
+					location.reload(true);
+				}
+				else alert(count + ' locations are overrun. The City is OK. Keep fighting');
+			}
+			phase++;
+		}
+	}
+
+	function changeStat()
+	{
+		var choose = 0;
+		var addSF = 0;
+		bonusSFpower = 0;
+		bonusSFpower += currentCards[0][3]+currentCards[1][3]+currentCards[2][3];
+		addSF += currentCards[0][2]+currentCards[1][2]+currentCards[2][2];		
+			function doubleBuilding(x,y)
+			{
+				alert ("There is double Location. If SF in both are equal, you must choose");
+				if (x < y) choose = 1;
+				else if(x > y) choose = 2;
+				else 
+				{
+					var chooseTemp = confirm("SF will go in top location! (If you want SF to go in bottom location, click 'Cancel')");
+					if (chooseTemp) choose = 1;
+					else choose = 2;
+				}
+			}	
+		for(i = 0; i < 2; i++)
+		{
+			switch(currentCards[i][1])
+			{
+				case "gate": gate += addSF;
+				if (protect == "Gate") gate -= addSF;
+				break;
+				case "baracks": baracks += addSF;
+				if (protect == "Baracks") baracks -= addSF;
+				break;
+				case "armory": armory += addSF;
+				if (protect == "Armory") armory -= addSF;
+				break;
+				case "market": market += addSF;
+				if (protect == "Market") market -= addSF;
+				break;		
+				case "citadel": citadel += addSF;
+				if (protect == "Citadel") citadel -= addSF;
+				break;
+				case "wall": wall += addSF;
+				if (protect == "Wall") wall -= addSF;
+				break;
+				case "library": library += addSF;
+				if (protect == "Library") library -= addSF;
+				break;
+				case "square": square += addSF; 
+				if (protect == "Square") square -= addSF;
+				break;
+				case "M/A":
+					if (protect == "Market") armory += addSF;
+					else if (protect == "Armory") market += addSF;
+					else
+					{
+						doubleBuilding(market, armory);
+						if (choose == 1) market += addSF;
+						else armory += addSF;
+					}
+				break;
+				case "W/S":
+					if (protect == "Wall") square += addSF;
+					else if (protect == "Square") wall += addSF;
+					else
+					{
+						doubleBuilding(wall, square);
+						if (choose == 1) wall +=addSF;
+						else square += addSF;
+					}
+				break;
+				case "C/G":
+					if (protect == "Cidadel") gate += addSF;
+					else if (protect == "Gate") citadel += addSF;
+					else
+					{	
+						doubleBuilding(citadel, gate);
+						if (choose == 1) citadel +=addSF;
+						else gate += addSF;
+					}
+				break;
+				case "L/B": 
+					if (protect == "Library") baracks += addSF;
+					else if (protect == "Baracks") library += addSF;
+					else
+					{
+						doubleBuilding(library, baracks);
+						if (choose == 1) library += addSF;
+						else baracks += addSF;
+					}
+				break;
+			}
+		}
+		protect = "";
+		setCurrentSF();
+		totalSFpower = bonusSFpower + attackSF;
+		document.getElementById("totalSFpower").innerHTML = totalSFpower;
+		document.getElementById("bonusSFpower").innerHTML = bonusSFpower;
+	changeMana();
+	updateSF();
+	}
+	
+	function changeMana()
+	{
+		var addMana = 0;
+		addMana += currentCards[0][4]+currentCards[1][4]+currentCards[2][4];
+		mana += addMana;
+		if (mana > 12) mana = 12;
+		document.getElementById("mana").innerHTML = mana;
+	}
+	
+	function position()
+	{
+		document.getElementById('guard').style.display = "inline";
+		for(i = 0; i < 4; i++)
+		{
+			if (locations[i][1] == "library")
+			{
+				switch (i)
+				{
+					case 0: 
+					leftPosition = 125;
+					topPosition = 75;
+					break; 
+					case 1:
+					leftPosition = 330;
+					topPosition = 75; 
+					break;
+					case 3: 
+					leftPosition = 125;
+					topPosition = 210;
+					break; 
+					case 2:
+					leftPosition = 330;
+					topPosition = 210; 
+					break;
+				} 
+				document.getElementById('guard').style.left = leftPosition+'px';
+				document.getElementById('guard').style.top = topPosition+'px';
+				CL = i;
+				if(i > 1) locations[i].splice(2,1,1);
+				ocupite = locations[CL][2];
+			}
+		}	
+	}
+	
+	function move()
+	{
+		
+		ocupite++;
+		document.getElementById('nextPhase').removeAttribute("disabled");
+		moveMarker();
+		if (ocupite > 2)
+		{
+			locations[CL].splice(2,1,0);
+			ocupite = 1;
+			CL++;
+			if(CL > 3) CL = 0;
+		}
+		locations[CL].splice(2,1,ocupite);
+		setCurrentSF();
+	}	
+
+	function moveMarker()
+	{
+		movePoints--;
+		if (movePoints == 0)
+		{
+			document.getElementById('moveButton').setAttribute("disabled","disabled");
+		}
+		if (topPosition == 75)
+		{
+			leftPosition+=102.5;
+			if (leftPosition > 330) 
+			{
+				leftPosition-=102.5;
+				topPosition = 210;
+			}
+		}
+		else
+		{
+			leftPosition-=102.5;
+			if (leftPosition < 22) 
+			{
+				leftPosition+=102.5;
+				topPosition = 75;
+			}
+		}
+		document.getElementById('guard').style.left = leftPosition+'px';
+		document.getElementById('guard').style.top = topPosition+'px';
+	}
+
+	function setCurrentSF()
+	{
+		if (CL < 2)
+		{
+			switch(locations[CL][1])
+			{	
+				case "armory":
+					if(ocupite==1) currentSF = armory;
+					else currentSF = market;
+				break;
+				case "gate":
+					if(ocupite==1) currentSF = gate;
+					else currentSF = baracks;
+				break;
+				case "library":
+					if(ocupite==1) currentSF = library;
+					else currentSF = citadel;
+				break;
+				case "wall":
+					if(ocupite==1) currentSF = wall;
+					else currentSF = square;
+				break;
+			}
+		}
+		else
+		{
+			switch(locations[CL][1])
+			{	
+				case "armory":
+					if(ocupite==2) currentSF = armory;
+					else currentSF = market;
+				break;
+				case "gate":
+					if(ocupite==2) currentSF = gate;
+					else currentSF = baracks;
+				break;
+				case "library":
+					if(ocupite==2) currentSF = library;
+					else currentSF = citadel;
+				break;
+				case "wall":
+					if(ocupite==2) currentSF = wall;
+					else currentSF = square;
+				break;
+			}	
+		}
+		if (currentSF == 0) attackSF = 0;
+		else if (currentSF <= 2) attackSF = 1;
+		else if (currentSF <= 6) attackSF = 3;
+		else if (currentSF == 7) attackSF = 4;
+		else if (currentSF > 7) attackSF = 5;
+		totalSFpower = bonusSFpower + attackSF;
+		document.getElementById("totalSFpower").innerHTML = totalSFpower;
+	}
+	
+	function attack()
+	{
+		if (currentSF == 0) 
+		{
+			alert ("No one to fight with, here.");
+			document.getElementById('nextPhase').removeAttribute("disabled");
+			document.getElementById('fightButton').setAttribute("disabled","disabled");
+		}
+		else
+		{
+			dice1 = Math.floor(Math.random()*6)+1;
+			dice2 = Math.floor(Math.random()*6)+1;
+			alert ('Your roll is '+dice1+' and '+dice2+'!');
+			currentPower = dice1 + dice2;
+			document.getElementById("currentPower").innerHTML = currentPower;
+			document.getElementById("dice1").innerHTML = dice1;
+			document.getElementById("dice2").innerHTML = dice2;
+		}
+		totalPower = currentPower;
+		if ((dice1 == dice2)&&(totalPower!= 0)) passage = true;
+		document.getElementById("totalPower").innerHTML = totalPower;
+	}
+	
+	function useSpell()
+	{
+		document.getElementById('spellButton').setAttribute("disabled","disabled");
+		var chosenSpell = prompt("Type the number of the spell you want to use (from 1 - 3)");
+		while ((chosenSpell != 1)&&(chosenSpell != 2)&&(chosenSpell != 3))
+		{
+			alert("Input correct spell number");
+			chosenSpell = prompt("Type the number of the spell you want to use (from 1 - 3)");
+		}
+		var dice3 = Math.floor(Math.random()*6)+1;
+		var recharge = 0;
+		var choose = false;
+		var reroll = 0;
+		var rerollTotal = 0;
+		switch(currentCards[chosenSpell - 1][1])
+		{	
+			case "gate": 
+				spellPower = 6;
+				mana -= 4;
+			break;
+			case "baracks": 
+				spellPower = dice3;
+				mana -=2;
+				alert('Your additional dice is ' + dice3);
+			break;
+			case "armory": 
+				recharge = Math.floor(Math.random()*3)+1;
+				choose = true;
+			break;	
+			case "market": 
+				spellPower = dice3;
+				reroll = 1;
+				mana -= 3; 
+			break;		
+			case "citadel": 
+				recharge = Math.floor(Math.random()*6)+1;
+				recharge += Math.floor(Math.random()*6)+1;
+				mana -= 2;
+				choose = true; 
+			break;
+			case "wall":
+				spellPower = 2;
+				mana -= 1; 
+			break;
+			case "library": 
+				recharge = Math.floor(Math.random()*6)+1;
+				choose = true; 
+				mana -= 1;
+			break;
+			case "square": 
+				spellPower = 4;
+				mana -= 3; 
+			break;
+			case "M/A": 
+				spellPower = dice3;
+				reroll = 2;
+				mana -= 4;
+			break;
+			case "W/S": 
+				recharge = Math.floor(Math.random()*6)+1;
+				choose = true; 
+				mana -= 2;
+			break;
+			case "C/G":
+				alert ("Choose location to protect");
+				document.getElementById('protect').removeAttribute('disabled');
+				document.getElementById('nextPhase').setAttribute('disable', 'disabled');
+				mana -= 3;
+			break;
+			case "L/B":
+				mana -= 2;
+				if(isFight) attackSecondLoc();
+				else
+				{
+					fight();
+					attackSecondLoc();
+				}
+			break;
+		}
+		if (choose == true)
+		{
+			if (confirm("Choose what to add: If you click 'OK' you will add Mana, 'Cancel' - Spirit")) mana += recharge;
+			else spirit += recharge;
+			alert('You added ' + recharge + ' to the chosen stat.');
+		}
+		if (reroll == 1 || reroll == 2)
+		{
+			alert('Your additional dice is ' + dice3);
+			if (confirm("Do you want to reroll?"))
+			{
+				var newDice1 = Math.floor(Math.random()*6)+1;
+				var newDice2 = Math.floor(Math.random()*6)+1;
+				var newDice3 = Math.floor(Math.random()*6)+1;
+				switch (reroll)
+				{
+					case 1:
+						if (dice1 >= dice2)
+						{
+							if (dice3 >= dice2)
+							{
+								document.getElementById('dice2').innerHTML = newDice2;
+								dice2 = newDice2;
+								alert ('Your new dice result is '+ newDice2 + '!');
+							}	
+							else 
+							{
+								spellPower = newDice3;
+								alert ('Your new dice result is '+ newDice3 + '!');
+							}
+						}
+						else
+						{
+							if(dice3 >= dice1)
+							{
+								document.getElementById('dice1').innerHTML = newDice1;
+								dice1 = newDice1;
+								alert ('Your new dice result is '+ newDice1 + '!');
+							}
+							else 
+							{
+								spellPower = newDice3;
+								alert ('Your new dice result is '+ newDice3 + '!');
+							}
+						}
+					break;
+					case 2:
+						var rerolls = prompt("How many dice you want to reroll? (from 1 - 3)");
+						while ((rerolls != 1)&&(rerolls != 2)&&(rerolls != 3))
+						{
+							alert("Input correct number of rerolls");
+							rerolls = prompt("How many dice you want to reroll? (from 1 - 3)");
+						}
+						switch (rerolls)
+						{
+							case "1":
+								if (dice1 >= dice2)
+								{
+									if (dice3 >= dice2)
+									{
+										document.getElementById('dice2').innerHTML = newDice2;
+										dice2 = newDice2;
+										alert ('Your new dice result is '+ newDice2 + '!');
+									}	
+									else 
+									{
+										spellPower = newDice3;
+										alert ('Your new dice result is '+ newDice3 + '!');
+									}
+								}
+								else
+								{
+									if(dice3 >= dice1)
+									{
+										document.getElementById('dice1').innerHTML = newDice1;
+										dice1 = newDice1;
+										alert ('Your new dice result is '+ newDice1 + '!');
+									}
+									else spellPower = newDice3;
+								}
+							break;
+							case "2":
+								if (dice1 <= dice2)
+								{
+									if (dice3 <= dice2)
+									{
+										document.getElementById('dice1').innerHTML = newDice1;
+										dice1 = newDice1;
+										spellPower = newDice3;
+										alert ('Your new dice result is '+ newDice1 + ', ' + newDice3 + '!');
+									}	
+									else 
+									{
+										dice1 = newDice1;
+										dice2 = newDice2;
+										document.getElementById('dice1').innerHTML = newDice1;
+										document.getElementById('dice2').innerHTML = newDice2;
+										alert ('Your new dice result is '+ newDice1 + ', ' + newDice2 + '!');
+									}
+								}
+								else
+								{
+									if(dice3 <= dice1)
+									{
+										document.getElementById('dice2').innerHTML = newDice2;
+										spellPower = newDice3;
+										dice2 = newDice2;
+										alert ('Your new dice result is '+ newDice2 + ', ' + newDice3 + '!');
+									}
+									else
+									{
+										dice1 = newDice1;
+										dice2 = newDice2;
+										document.getElementById('dice1').innerHTML = newDice1;
+										document.getElementById('dice2').innerHTML = newDice2;
+										alert ('Your new dice result is '+ newDice1 + ', ' + newDice2 + '!');
+									}
+								}
+							break;
+							case "3": 
+								alert ('Your new dice result is '+ newDice1 + ', ' + newDice2 + ', ' + newDice3 + '!');
+								dice1 = newDice1; dice2 = newDice2; spellPower = newDice3;
+								document.getElementById('dice1').innerHTML = newDice1;
+								document.getElementById('dice2').innerHTML = newDice2;
+							break;
+						}
+					break;
+				}
+			}
+		}
+		if (mana > 12) mana = 12;
+		if (spirit > 12) spirit = 12;
+		currentPower = dice1 + dice2;
+		totalPower = spellPower + currentPower;
+		document.getElementById("spirit").innerHTML = spirit;
+		document.getElementById("totalPower").innerHTML = totalPower;
+		document.getElementById("mana").innerHTML = mana;
+	}
+
+	function useSkill()
+	{
+		
+	}
+	
+	function fight()
+	{
+		if (totalPower >= totalSFpower)
+		{
+			alert ("You WON");
+			var dmg = 0;
+			if (totalPower <= 8) dmg = 2;
+			else if (totalPower <= 10) dmg = 3;
+			else if (totalPower <= 12) dmg = 4;
+			else if (totalPower <= 15) dmg = 5;
+			else if (totalPower <= 17) dmg = 6;
+			else dmg = 7;
+			var afterDmg = currentSF - dmg;
+			if (afterDmg < 0) afterDmg = 0;
+			if (CL < 2)
+			{
+				switch(locations[CL][1])
+				{	
+					case "armory":
+						if(ocupite==1) armory = afterDmg;
+						else market = afterDmg;
+					break;
+					case "gate":
+						if(ocupite==1) gate = afterDmg;
+						else baracks = afterDmg;
+					break;
+					case "library":
+						if(ocupite==1) library = afterDmg;
+						else citadel = afterDmg;
+					break;
+					case "wall":
+						if(ocupite==1) wall = afterDmg;
+						else square = afterDmg;
+					break;
+				}
+			}
+			else
+			{
+				switch(locations[CL][1])
+				{	
+					case "armory":
+						if(ocupite==2) armory = afterDmg;
+						else market = afterDmg;
+					break;
+					case "gate":
+						if(ocupite==2) gate = afterDmg;
+						else baracks = afterDmg;
+					break;
+					case "library":
+						if(ocupite==2) library = afterDmg;
+						else citadel = afterDmg;
+					break;
+					case "wall":
+						if(ocupite==2) wall = afterDmg;
+						else square = afterDmg;
+					break;
+				}
+			}
+		updateSF();
+		}
+		else
+		{
+			alert ("Sorry, you LOST this battle");
+			var looses = 0;
+			if (currentSF <= 2) looses = 1;
+			else if (currentSF <= 6) looses = 2;
+			else if (currentSF == 7) looses = 3;
+			else if (currentSF >= 8) looses = 4; 
+			alert ('You going to loose ' + looses + 'spirit!');
+			spirit -= looses;
+			if (spirit <= 0)
+			{
+				alert ("Your SPIRIT is gone. You can't fight anymore. Y O U   L O S T !!!");
+				location.reload(true);
+			}
+		}
+		if (isFight)
+		{
+			CL = saveCL;
+			ocupite = saveOcupite;
+		}
+		totalPower = 0;
+		currentPower = 0;
+		spellPower = 0;
+		isFight = true;
+		document.getElementById("currentPower").innerHTML = currentPower;
+		document.getElementById("totalPower").innerHTML = totalPower;
+		document.getElementById("spirit").innerHTML = spirit;
+		document.getElementById('fightButton').setAttribute("disabled","disabled");
+		document.getElementById('nextPhase').removeAttribute("disabled");
+	}
+
+	function blockSiege()
+	{
+		protect = document.getElementById('protectList').value;
+		alert(protect + ' is protected to the end of the next turn');
+		document.getElementById('protect').setAttribute("disabled","disabled");
+		if(document.getElementById('fightButton').getAttribute('disabled') == 'disabled') document.getElementById('nextPhase').removeAttribute("disabled");				
+	}
+	
+	function showDiscard()
+	{
+		document.getElementById('discardPile').innerHTML = '';
+		if (document.getElementById('discardPile').style.display == 'inline')
+			document.getElementById('discardPile').style.display = 'none';
+		else document.getElementById('discardPile').style.display = 'inline';
+		for (i = 0; i < discardDeck.length - 3; i++)
+		{
+			document.getElementById('discardPile').innerHTML += discardDeck[i][0][1]+', ';
+		}
+	}
+
+	function attackSecondLoc()
+	{
+		saveCL = CL;
+		saveOcupite = ocupite;
+		document.getElementById('spellButton').removeAttribute('disabled');
+		var chooseSecondLoc = confirm("If you want to attack NEXT location click 'OK', for PREVIOUS click 'Cancel'");
+		if (chooseSecondLoc)
+		{
+			if (ocupite == 1)
+			{
+				ocupite++;
+				setCurrentSF();
+				attack();
+			}
+			else
+			{
+				ocupite--;
+				CL++;
+				if(CL > 3) CL = 0;
+				setCurrentSF();
+				attack();
+			}
+		}
+		else
+		{
+			if (ocupite == 1)
+			{
+				ocupite++;
+				CL--;
+				if(CL < 0) CL= 3;
+				setCurrentSF();
+				attack();
+			}
+			else
+			{
+				ocupite--;
+				setCurrentSF();
+				attack();
+			}
+		}
+		document.getElementById('fightButton').removeAttribute("disabled");
+		document.getElementById('nextPhase').setAttribute("disabled","disabled");
+	}
+	
+	function startGame()
+	{
+		dealLocations();
+		position();
+		dealPlayCards();
+		nextPhase();
+		document.getElementById('startButton').setAttribute("disabled","disabled");
+		document.getElementById('moveButton').style.display = "inline";
+		document.getElementById('spellButton').style.display = "inline";
+		document.getElementById('skillButton').style.display = "inline";
+		document.getElementById('fightButton').style.display = "inline";
+		document.getElementById('discardButton').style.display = "inline";
+	}
+	
+	</script>
+	</body>
+	
+</html>
